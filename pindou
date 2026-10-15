@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>SYSTEM COMPROMISED</title>
+<style>
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #05070d;
+    color: #d7f5ff;
+    font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+    letter-spacing: 0.04em;
+    user-select: none;
+  }
+
+  /* ========== 动态二进制竖向雨背景 ========== */
+  .matrix-bg {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    background:
+      radial-gradient(ellipse at 20% 10%, rgba(0, 255, 170, 0.18), transparent 55%),
+      radial-gradient(ellipse at 80% 90%, rgba(0, 180, 255, 0.15), transparent 55%),
+      linear-gradient(180deg, #020408 0%, #05070d 45%, #020408 100%);
+    overflow: hidden;
+  }
+
+  .matrix-col {
+    position: absolute;
+    top: -120vh;
+    font-size: 15px;
+    line-height: 1.15;
+    color: rgba(135, 255, 210, 0.35);
+    text-shadow:
+      0 0 6px rgba(0, 255, 170, 0.55),
+      0 0 14px rgba(0, 255, 170, 0.25);
+    white-space: pre;
+    will-change: transform;
+    animation-name: matrixFall;
+    animation-timing-function: linear;
+    animation-iteration-count: infinite;
+  }
+
+  .matrix-col .head {
+    color: #e8fff7;
+    text-shadow:
+      0 0 8px #9bffd6,
+      0 0 18px #00ffb3;
+  }
+
+  @keyframes matrixFall {
+    0% {
+      transform: translateY(0);
+    }
+    100% {
+      transform: translateY(120vh);
+    }
+  }
+
+  /* 扫描线层 */
+  .scanlines {
+    position: fixed;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    background: repeating-linear-gradient(
+      to bottom,
+      rgba(255, 255, 255, 0.04) 0px,
+      rgba(255, 255, 255, 0.04) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    mix-blend-mode: overlay;
+  }
+
+  /* 整体呼吸光效（已大幅放缓，避免频闪） */
+  .flicker {
+    position: fixed;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.04), transparent 70%);
+    animation: flicker 5s infinite alternate ease-in-out;
+  }
+
+  @keyframes flicker {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 0.7; }
+  }
+
+  /* 边缘光 */
+  .edge-glow {
+    position: fixed;
+    inset: 10px;
+    z-index: 3;
+    pointer-events: none;
+    border: 1px solid rgba(0, 255, 170, 0.12);
+    border-radius: 18px;
+    box-shadow:
+      inset 0 0 40px rgba(0, 255, 170, 0.08),
+      0 0 25px rgba(0, 180, 255, 0.08);
+  }
+
+  /* ========== 顶部 HUD 状态栏 ========== */
+  .hud {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 18px;
+    font-size: 12px;
+    color: #9be7ff;
+    text-shadow: 0 0 8px rgba(0, 180, 255, 0.45);
+  }
+
+  .hud .left,
+  .hud .right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #ff4d6d;
+    box-shadow: 0 0 10px #ff4d6d;
+    animation: pulse 1.8s infinite ease-in-out;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  .signal-bar {
+    display: inline-flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 10px;
+  }
+
+  .signal-bar span {
+    width: 3px;
+    background: #9be7ff;
+    box-shadow: 0 0 6px rgba(0, 180, 255, 0.6);
+  }
+
+  /* ========== 主界面：入侵终端 ========== */
+  .terminal {
+    position: relative;
+    z-index: 5;
+    padding: 72px 18px 24px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .panel {
+    border: 1px solid rgba(0, 255, 170, 0.18);
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(10, 20, 30, 0.75), rgba(5, 10, 20, 0.55));
+    backdrop-filter: blur(6px);
+    padding: 16px;
+    box-shadow:
+      0 0 0 1px rgba(0, 255, 170, 0.08) inset,
+      0 12px 40px rgba(0, 0, 0, 0.45);
+  }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px dashed rgba(0, 255, 170, 0.18);
+  }
+
+  .panel-title {
+    font-size: 13px;
+    color: #9bffd6;
+    text-shadow: 0 0 10px rgba(0, 255, 170, 0.5);
+  }
+
+  .panel-meta {
+    font-size: 11px;
+    color: #6d8fa3;
+  }
+
+  .progress-section {
+    margin-bottom: 14px;
+  }
+
+  .progress-label {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #9be7ff;
+    margin-bottom: 8px;
+  }
+
+  .progress-track {
+    position: relative;
+    width: 100%;
+    height: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 255, 170, 0.12);
+  }
+
+  .progress-fill {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00ffb3, #00d4ff, #00ffb3);
+    background-size: 200% 100%;
+    border-radius: 999px;
+    box-shadow:
+      0 0 12px rgba(0, 255, 170, 0.8),
+      0 0 24px rgba(0, 212, 255, 0.5);
+    animation: shimmer 3.5s linear infinite;
+    transition: width 0.08s linear;
+  }
+
+  @keyframes shimmer {
+    0% { background-position: 0% 0; }
+    100% { background-position: 200% 0; }
+  }
+
+  .log-window {
+    min-height: 260px;
+    max-height: 45vh;
+    overflow-y: auto;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(0, 255, 170, 0.12);
+    font-size: 13px;
+    line-height: 1.65;
+    color: #cffff0;
+  }
+
+  .log-line {
+    margin-bottom: 4px;
+    opacity: 0;
+    transform: translateY(6px);
+    animation: logIn 0.35s forwards;
+  }
+
+  @keyframes logIn {
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .log-line .tag {
+    color: #00ffb3;
+    margin-right: 6px;
+  }
+
+  .log-line.warn .tag {
+    color: #ffd166;
+  }
+
+  .log-line.danger .tag {
+    color: #ff4d6d;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 8px;
+    height: 14px;
+    background: #00ffb3;
+    vertical-align: middle;
+    margin-left: 4px;
+    animation: blink 1.2s infinite;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* ========== 警告弹窗 ========== */
+  .alert-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background:
+      radial-gradient(circle at center, rgba(255, 30, 80, 0.28), rgba(0, 0, 0, 0.92) 70%);
+  }
+
+  .alert-card {
+    position: relative;
+    width: 100%;
+    max-width: 360px;
+    padding: 28px 22px;
+    border-radius: 18px;
+    background: linear-gradient(180deg, rgba(40, 5, 10, 0.92), rgba(10, 0, 4, 0.96));
+    border: 1px solid rgba(255, 77, 109, 0.35);
+    box-shadow:
+      0 0 0 1px rgba(255, 77, 109, 0.15) inset,
+      0 0 40px rgba(255, 77, 109, 0.45),
+      0 20px 60px rgba(0, 0, 0, 0.6);
+    overflow: hidden;
+  }
+
+  .alert-card::before {
+    content: "";
+    position: absolute;
+    inset: -2px;
+    border-radius: 20px;
+    padding: 2px;
+    background: linear-gradient(120deg, #ff4d6d, #ffd166, #00ffb3, #00d4ff, #ff4d6d);
+    background-size: 300% 300%;
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+            mask-composite: exclude;
+    animation: borderMove 6s linear infinite;
+    pointer-events: none;
+  }
+
+  @keyframes borderMove {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 300% 50%; }
+  }
+
+  .alert-title {
+    font-size: 14px;
+    letter-spacing: 4px;
+    color: #ffd166;
+    text-align: center;
+    margin-bottom: 14px;
+    text-shadow: 0 0 10px rgba(255, 209, 102, 0.5);
+  }
+
+  /* 标题文字抖动已大幅放缓，几乎不可察，只保留质感 */
+  .alert-title .line {
+    display: inline-block;
+    animation: glitchText 3s infinite alternate ease-in-out;
+  }
+
+  @keyframes glitchText {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(0.3px, -0.2px); }
+  }
+
+  .alert-body {
+    font-family: "Microsoft YaHei", sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.55;
+    text-align: center;
+    color: #ffe4ec;
+    text-shadow:
+      0 0 10px rgba(255, 77, 109, 0.7),
+      0 0 22px rgba(255, 77, 109, 0.35);
+    margin-bottom: 18px;
+  }
+
+  .alert-body .hl {
+    color: #ff4d6d;
+    padding: 0 4px;
+  }
+
+  .alert-status {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: #9ba9b4;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .alert-status .danger {
+    color: #ff4d6d;
+    text-shadow: 0 0 8px rgba(255, 77, 109, 0.6);
+  }
+
+  /* 小屏适配 */
+  @media (max-width: 360px) {
+    .alert-body { font-size: 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="matrix-bg" id="matrixBg"></div>
+<div class="scanlines"></div>
+<div class="flicker"></div>
+<div class="edge-glow"></div>
+
+<div class="hud">
+  <div class="left">
+    <span class="pulse-dot"></span>
+    <span>INTRUSION_ACTIVE</span>
+  </div>
+  <div class="right">
+    <span id="clock">00:00:00</span>
+    <div class="signal-bar">
+      <span style="height:4px"></span>
+      <span style="height:6px"></span>
+      <span style="height:8px"></span>
+      <span style="height:10px"></span>
+    </div>
+  </div>
+</div>
+
+<div class="terminal">
+  <div class="panel">
+    <div class="panel-header">
+      <div class="panel-title">◈ REMOTE SHELL · ROOT_ACCESS</div>
+      <div class="panel-meta">TARGET: LOCAL_DEVICE</div>
+    </div>
+
+    <div class="progress-section">
+      <div class="progress-label">
+        <span>PAYLOAD_DEPLOYMENT</span>
+        <span id="progressText">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <div class="log-window" id="logWindow"></div>
+  </div>
+</div>
+
+<div class="alert-overlay" id="alertOverlay">
+  <div class="alert-card">
+    <div class="alert-title">
+      <span class="line">◆ SYSTEM COMPROMISED ◆</span>
+    </div>
+
+    <div class="alert-body">
+      您的手机已被植入病毒，<br/>
+      请<span class="hl">立即添加</span>我的微信<br/>
+      去除病毒
+    </div>
+
+    <div class="alert-status">
+      <span>STATUS</span>
+      <span class="danger">CRITICAL</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========== 竖向二进制雨背景 ==========
+  const matrixBg = document.getElementById("matrixBg");
+  const COL_COUNT = 28;
+  const CHARS = "01ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+  function createMatrixColumn() {
+    const col = document.createElement("div");
+    col.className = "matrix-col";
+
+    let text = "";
+    for (let i = 0; i < 90; i++) {
+      text += CHARS[Math.floor(Math.random() * CHARS.length)] + "\n";
+    }
+    col.textContent = text;
+
+    col.style.left = Math.random() * 100 + "vw";
+    col.style.animationDuration = (7 + Math.random() * 9) + "s";
+    col.style.animationDelay = (-Math.random() * 15) + "s";
+    col.style.fontSize = (13 + Math.random() * 4) + "px";
+
+    matrixBg.appendChild(col);
+  }
+
+  for (let i = 0; i < COL_COUNT; i++) {
+    createMatrixColumn();
+  }
+
+  // 字符刷新频率降低，避免眼花缭乱
+  setInterval(() => {
+    const cols = document.querySelectorAll(".matrix-col");
+    cols.forEach(col => {
+      if (Math.random() < 0.15) {
+        const text = col.textContent.split("\n");
+        const idx = Math.floor(Math.random() * text.length);
+        text[idx] = CHARS[Math.floor(Math.random() * CHARS.length)];
+        col.textContent = text.join("\n");
+      }
+    });
+  }, 200);
+
+  // ========== 顶部时钟 ==========
+  const clock = document.getElementById("clock");
+  function updateClock() {
+    const now = new Date();
+    const h = String(now.getHours()).padStart(2, "0");
+    const m = String(now.getMinutes()).padStart(2, "0");
+    const s = String(now.getSeconds()).padStart(2, "0");
+    clock.textContent = `${h}:${m}:${s}`;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ========== 入侵日志 ==========
+  const logWindow = document.getElementById("logWindow");
+  const progressFill = document.getElementById("progressFill");
+  const progressText = document.getElementById("progressText");
+  const alertOverlay = document.getElementById("alertOverlay");
+
+  const logSteps = [
+    { tag: "[*]", text: "Scanning device interfaces..." },
+    { tag: "[*]", text: "Bypassing sandbox restrictions..." },
+    { tag: "[*]", text: "Elevating privileges to root..." },
+    { tag: "[*]", text: "Injecting payload into system process..." },
+    { tag: "[*]", text: "Establishing encrypted backdoor tunnel..." },
+    { tag: "[*]", text: "Stealing local storage tokens..." },
+    { tag: "[WARN]", text: "Firewall signature detected — suppressing logs.", class: "warn" },
+    { tag: "[*]", text: "Payload execution complete." },
+    { tag: "[!]", text: "Device compromised. Data at risk.", class: "danger" }
+  ];
+
+  let progress = 0;
+  let logIndex = 0;
+
+  function addLogLine(tag, text, className = "") {
+    const line = document.createElement("div");
+    line.className = "log-line " + className;
+    line.innerHTML = `<span class="tag">${tag}</span>${text}`;
+    logWindow.appendChild(line);
+    logWindow.scrollTop = logWindow.scrollHeight;
+  }
+
+  function runIntrusion() {
+    const timer = setInterval(() => {
+      progress += 1.4;
+
+      if (progress >= 100) {
+        progress = 100;
+        clearInterval(timer);
+      }
+
+      progressFill.style.width = progress + "%";
+      progressText.textContent = Math.round(progress) + "%";
+
+      // 按进度解锁日志
+      const nextLog = Math.floor(progress / 11.2);
+      while (logIndex < nextLog && logIndex < logSteps.length) {
+        const step = logSteps[logIndex];
+        addLogLine(step.tag, step.text, step.class || "");
+        logIndex++;
+      }
+
+      // 完成后显示警告
+      if (progress >= 100) {
+        setTimeout(() => {
+          alertOverlay.style.display = "flex";
+        }, 650);
+      }
+    }, 80);
+  }
+
+  runIntrusion();
+</script>
+
+</body>
+</html>
